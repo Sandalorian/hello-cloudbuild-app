@@ -4,8 +4,7 @@ steps:
   id: pipeline-test
   script: |
     #!/usr/bin/env bash
-    mkdir -p /usr/share/logstash/scripts/debug_logs
-    ln -s /usr/share/logstash/scripts/debug_logs/duration_parse.rb /workspace/logstash/scripts/debug_logs/duration_parse.rb
+    ln -s /workspace/logstash/ /usr/share/logstash
     logstash --config.test_and_exit -f logstash/pipeline/debug
     exit_code=$?
     test $exit_code -eq 0 && exit 0 || exit 1
