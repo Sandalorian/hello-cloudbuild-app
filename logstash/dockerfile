@@ -1,0 +1,9 @@
+ARG ELK_VERSION
+FROM docker.elastic.co/logstash/logstash:${ELK_VERSION}
+
+ARG PIPELINE_LOCATION
+
+COPY ./logstash/pipeline/${PIPELINE_LOCATION}/*.conf /usr/share/logstash/pipeline/
+COPY ./logstash/scripts/ /usr/share/logstash/scripts/
+# Remove the default logstash conf file
+RUN rm /usr/share/logstash/pipeline/logstash.conf

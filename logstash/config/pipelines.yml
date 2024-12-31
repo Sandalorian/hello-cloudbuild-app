@@ -1,0 +1,11 @@
+
+- pipeline.id: debug-logs
+  path.config: "/usr/share/logstash/pipeline/debug_logs/"
+  pipeline.workers: ${DEBUG_PIPELINE_WORKERS}
+- pipeline.id: query-logs
+  path.config: "/usr/share/logstash/pipeline/query_logs/"
+  pipeline.workers: ${QUERY_PIPELINE_WORKERS}
+- pipeline.id: metrics
+  path.config: "/usr/share/logstash/pipeline/metrics/"
+  pipeline.workers: ${METRICS_PIPELINE_WORKERS}
+  pipeline.batch.size: 500
