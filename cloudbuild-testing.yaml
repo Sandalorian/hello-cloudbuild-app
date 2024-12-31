@@ -4,7 +4,9 @@ steps:
   id: pipeline-test
   script: |
     #!/usr/bin/env bash
-    ln -s /workspace/logstash/ /usr/share/logstash
+    cp ./logstash/config/pipelines.yml /usr/share/logstash/config/pipelines.yml
+    cp -R ./logstash/pipeline/ /usr/share/logstash/pipeline/
+    cp -R ./logstash/scripts/ /usr/share/logstash/scripts/
     logstash --config.test_and_exit --debug
     exit_code=$?
     test $exit_code -eq 0 && exit 0 || exit 1
