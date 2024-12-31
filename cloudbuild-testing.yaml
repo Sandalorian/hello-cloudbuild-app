@@ -9,7 +9,7 @@ steps:
     ECK_ES_HOSTS=es01
     ECK_ES_USER=
     ECK_ES_PASSWORD=
-    ECK_ES_SSL_CERTIFICATE_AUTHORITY="/etc/ssl/"
+    ECK_ES_SSL_CERTIFICATE_AUTHORITY=/etc/ssl/
   script: |
     #!/usr/bin/env bash
     cp ./logstash/config/pipelines.yml /usr/share/logstash/config/pipelines.yml
