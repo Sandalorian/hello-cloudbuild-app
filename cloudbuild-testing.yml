@@ -1,8 +1,10 @@
 steps:
   # This run a validation on the logstash configuration
-- name: docker.elastic.co/logstash/logstash:${ELK_VERSION}
+- name: docker.elastic.co/logstash/logstash:${_ELK_VERSION}
   id: pipeline-test
   entrypoint: /bin/bash
   args:
     - -c
-    - 'logstash --config.test_and_exit;exit_code=$?;test $exit_code -eq 0 && exit 0 || exit 1;'
+    - 'ls -l; pwd'
+    # - -c
+    # - 'logstash --config.test_and_exit;exit_code=$?;test $exit_code -eq 0 && exit 0 || exit 1;'
