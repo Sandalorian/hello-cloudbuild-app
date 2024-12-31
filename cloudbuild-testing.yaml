@@ -2,6 +2,14 @@ steps:
   # This run a validation on the logstash configuration
 - name: docker.elastic.co/logstash/logstash:${_ELK_VERSION}
   id: pipeline-test
+  env:
+    DEBUG_PIPELINE_WORKERS=16
+    QUERY_PIPELINE_WORKERS=16
+    METRICS_PIPELINE_WORKERS=16
+    ECK_ES_HOSTS=es01
+    ECK_ES_USER=
+    ECK_ES_PASSWORD=
+    ECK_ES_SSL_CERTIFICATE_AUTHORITY="/etc/ssl/"
   script: |
     #!/usr/bin/env bash
     cp ./logstash/config/pipelines.yml /usr/share/logstash/config/pipelines.yml
