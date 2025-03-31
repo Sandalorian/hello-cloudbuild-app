@@ -20,8 +20,6 @@ jobs:
 
   get-changed-files-matrix:
     runs-on: ubuntu-latest
-    outputs:
-      all-changed-files: ${{ steps.checkout.outputs.all-changed-files }}
     steps:
       - id: checkout
         name: Clone to local
