@@ -58,7 +58,7 @@ jobs:
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
             pipeline_type=$(basename "$folder")
             echo "creating manifest for $pipeline_type"
-             echo 'iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" $GH_COMMIT_SHA ${pipeline_type}'
+             echo "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" $GH_COMMIT_SHA ${pipeline_type}
             iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" $GH_COMMIT_SHA ${pipeline_type}
             echo "Manifest created for $pipeline_type"
             echo "Manifest created: iac/elk/manifests/${pipeline_type}-pipeline.yaml"
