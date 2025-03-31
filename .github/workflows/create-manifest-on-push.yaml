@@ -21,35 +21,48 @@ jobs:
   get-changed-files-matrix:
     runs-on: ubuntu-latest
     outputs:
-      matrix: ${{ steps.changed-files.outputs.matrix }}
+      all-changed-files: ${{ steps.checkout.outputs.all-changed-files }}
     steps:
       - id: checkout
-        name: Clone synlig
-        uses: actions/checkout@v4
-    # TODO: We have hardcoded file names. this needs to collect only the changed files. 
-      - id: changed-files
-        run: echo "matrix=[\"logstash/pipeline/metrics/filter.conf\",\"logstash/pipeline/query_logs/filter.conf\",\"logstash/pipeline/debug_logs/filter.conf\"]" >> $GITHUB_OUTPUT
-
-  commit-pipeline-manifest:
-    needs: get-changed-files-matrix
-    runs-on: ubuntu-latest
-    strategy:
-      matrix: 
-        files: ${{ fromJson(needs.get-changed-files-matrix.outputs.matrix) }}
-    steps: 
-      - id: checkout
-        name: Clone local
+        name: Clone to local
         uses: actions/checkout@v4
         with:
           path: local
-      - id: clone-iac
-        name: Clone iac
-        uses: actions/checkout@v4
+      - name: Get changed files
+        id: changed-files
+        uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46
         with:
-          ssh-key: ${{ secrets.IAC_KEY }}
-          repository: ${{ vars.IAC_REPO }}
-          path: iac
-      - run: ls -l *
-      # TODO: add code to create manifests
-      - id: create-new-mainfests
-        run: echo "${{ matrix.files }}"
+          path: local
+      - name: debug
+        run: |
+          echo "All changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
+          echo "Changed files: ${{ steps.changed-files.outputs.changed_files }}"
+          echo "Added files: ${{ steps.changed-files.outputs.added_files }}"
+          echo "Modified files: ${{ steps.changed-files.outputs.modified_files }}"
+          echo "Removed files: ${{ steps.changed-files.outputs.removed_files }}"
+          echo "Renamed files: ${{ steps.changed-files.outputs.renamed_files }}"
+          echo "Unmerged files: ${{ steps.changed-files.outputs.unmerged_files }}"
+
+
+
+  # commit-pipeline-manifest:
+  #   needs: get-changed-files-matrix
+  #   runs-on: ubuntu-latest
+  #   steps: 
+  #     - id: checkout
+  #       name: Clone local
+  #       uses: actions/checkout@v4
+  #       with:
+  #         path: local
+  #     - id: clone-iac
+  #       name: Clone iac
+  #       uses: actions/checkout@v4
+  #       with:
+  #         ssh-key: ${{ secrets.IAC_KEY }}
+  #         repository: ${{ vars.IAC_REPO }}
+  #         path: iac
+  #     - run: ls -l
+  #     - id: create-new-mainfests
+  #       env:
+  #         ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
+  #       run: echo "${{ matrix.files }}"
