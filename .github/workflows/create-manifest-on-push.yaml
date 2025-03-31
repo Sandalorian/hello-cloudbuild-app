@@ -31,6 +31,8 @@ jobs:
         uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46
         with:
           path: local
+          files: |
+            logstash/pipeline/**
       - name: debug
         run: |
           echo "All changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
@@ -40,6 +42,15 @@ jobs:
           echo "Removed files: ${{ steps.changed-files.outputs.removed_files }}"
           echo "Renamed files: ${{ steps.changed-files.outputs.renamed_files }}"
           echo "Unmerged files: ${{ steps.changed-files.outputs.unmerged_files }}"
+      - name: create manifests
+        id: create-manifests
+        run: |
+          echo "Creating manifests"
+          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            filename=$(basename "$file")
+            echo $filename
+          done
+          echo "Manifests created: ${{ steps.changed-files.outputs.all_changed_files }}"
 
 
 
