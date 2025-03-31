@@ -47,9 +47,13 @@ jobs:
         id: create-manifests
         run: |
           echo "Creating manifests"
-          for file in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            filename=$(basename "$file")
-            echo $filename
+          for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
+            pipeline_type=$(basename "$folder")
+            echo "creating manifest for $pipeline_type"
+            iac/elk/scripts/generate_pipeline_secret_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" $GH_COMMIT_SHA ${pipeline_type}
+            echo "Manifest created for $pipeline_type"
+            echo "Manifest created: iac/elk/manifests/${pipeline_type}-pipeline.yaml"
+            cat iac/elk/manifests/${pipeline_type}-pipeline.yaml
           done
           echo "Manifests created: ${{ steps.changed-files.outputs.all_changed_files }}"
 
