@@ -50,8 +50,8 @@ jobs:
           ssh-key: ${{ secrets.IAC_KEY }}
           repository: ${{ vars.IAC_REPO }}
           path: iac
-      - run: |
-          ls -l *
+      - name: Show files
+        run: |
           tree
       - name: create manifests
         id: create-manifests
@@ -60,14 +60,24 @@ jobs:
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
             pipeline_type=$(basename "$folder")
             echo "creating manifest for $pipeline_type"
-             echo "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" ${{ github.sha }} ${pipeline_type}
             iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "local/${folder}" ${{ github.sha }} ${pipeline_type}
             echo "Manifest created for $pipeline_type"
             echo "Manifest created: iac/elk/manifests/${pipeline_type}-pipeline.yaml"
-            cat iac/elk/manifests/${pipeline_type}-pipeline.yaml
           done
           echo "Manifests created: ${{ steps.changed-files.outputs.all_changed_files }}"
-
+      - name: Show Manifests
+        run: |
+          echo "Manifests created:"
+          tree iac/elk/manifests/
+      - name: Commit and push
+        run: |
+          cd iac
+          git config --global user.email "github-actions@github.com"
+          git config --global user.name "GitHub Actions"
+          git checkout -b update-manifests-${{ github.sha }}
+          git add manifests/
+          git commit -m "Update manifests for app GitHub Sha ${{ github.sha }}"
+          git push origin update-manifests-${{ github.sha }}
 
 
   # commit-pipeline-manifest:
