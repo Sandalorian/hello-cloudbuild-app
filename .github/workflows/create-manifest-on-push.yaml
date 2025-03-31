@@ -59,7 +59,7 @@ jobs:
             pipeline_type=$(basename "$folder")
             echo "creating manifest for $pipeline_type"
              echo "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" ${{ github.sha }} ${pipeline_type}
-            iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "${folder}" ${{ github.sha }} ${pipeline_type}
+            iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "local/${folder}" ${{ github.sha }} ${pipeline_type}
             echo "Manifest created for $pipeline_type"
             echo "Manifest created: iac/elk/manifests/${pipeline_type}-pipeline.yaml"
             cat iac/elk/manifests/${pipeline_type}-pipeline.yaml
