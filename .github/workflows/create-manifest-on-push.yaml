@@ -43,6 +43,14 @@ jobs:
           echo "Removed files: ${{ steps.changed-files.outputs.removed_files }}"
           echo "Renamed files: ${{ steps.changed-files.outputs.renamed_files }}"
           echo "Unmerged files: ${{ steps.changed-files.outputs.unmerged_files }}"
+      - id: clone-iac
+        name: Clone iac
+        uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.IAC_KEY }}
+          repository: ${{ vars.IAC_REPO }}
+          path: iac
+      - run: ls -l
       - name: create manifests
         id: create-manifests
         run: |
