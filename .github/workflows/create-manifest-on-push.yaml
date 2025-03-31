@@ -1,0 +1,55 @@
+  # This workflow is used to update the kubernetes secret manifest on synlig-iac. 
+# The trigger to run would be:
+# - There is an push to main
+# - The push contains a change logstash pipeline file
+
+name: Update Pipeline Secret Manifest 
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - 'logstash/pipeline/**'
+
+jobs:
+  run-pipeline-tests:
+    runs-on: ubuntu-latest 
+    steps:
+        - uses: actions/checkout@v4
+
+  get-changed-files-matrix:
+    runs-on: ubuntu-latest
+    outputs:
+      matrix: ${{ steps.changed-files.outputs.matrix }}
+    steps:
+      - id: checkout
+        name: Clone synlig
+        uses: actions/checkout@v4
+    # TODO: We have hardcoded file names. this needs to collect only the changed files. 
+      - id: changed-files
+        run: echo "matrix=[\"logstash/pipeline/metrics/filter.conf\",\"logstash/pipeline/query_logs/filter.conf\",\"logstash/pipeline/debug_logs/filter.conf\"]" >> $GITHUB_OUTPUT
+
+  commit-pipeline-manifest:
+    needs: get-changed-files-matrix
+    runs-on: ubuntu-latest
+    strategy:
+      matrix: 
+        files: ${{ fromJson(needs.get-changed-files-matrix.outputs.matrix) }}
+    steps: 
+      - id: checkout
+        name: Clone local
+        uses: actions/checkout@v4
+        with:
+          path: local
+      - id: clone-iac
+        name: Clone iac
+        uses: actions/checkout@v4
+        with:
+          ssh-key: ${{ secrets.IAC_KEY }}
+          repository: ${{ vars.IAC_REPO }}
+          path: iac
+      - run: ls -l *
+      # TODO: add code to create manifests
+      - id: create-new-mainfests
+        run: echo "${{ matrix.files }}"
