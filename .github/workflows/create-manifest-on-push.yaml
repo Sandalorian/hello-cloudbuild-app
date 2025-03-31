@@ -50,7 +50,7 @@ jobs:
           ssh-key: ${{ secrets.IAC_KEY }}
           repository: ${{ vars.IAC_REPO }}
           path: iac
-      - run: ls -l
+      - run: ls -l *
       - name: create manifests
         id: create-manifests
         run: |
