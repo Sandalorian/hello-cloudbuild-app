@@ -75,7 +75,7 @@ jobs:
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
           git checkout -b update-manifests-${{ github.sha }}
-          git add manifests/
+          git add elk/manifests/
           git commit -m "Update manifests for app GitHub Sha ${{ github.sha }}"
           git push origin update-manifests-${{ github.sha }}
 
