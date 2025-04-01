@@ -18,9 +18,42 @@ jobs:
     steps:
         - uses: actions/checkout@v4
 
-  get-changed-files-matrix:
+  create-pipeline-manifest:
     runs-on: ubuntu-latest
     steps:
+      - name: Install Applications
+        shell: bash
+        if: ${{ env.ACT && runner.os == 'Linux' }}
+        run: |
+          sudo apt update \
+          && sudo apt-get update \
+          && sudo apt-get install -y tree 
+      - name: Install kubectl
+        shell: bash
+        if: ${{ env.ACT && runner.os == 'Linux' }}
+        run: |
+          (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+            && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg \
+            && sudo mkdir -p -m 755 /etc/apt/keyrings \
+            && curl -fsSL https://pkgs.k8s.io/core:/stable:/v1.32/deb/Release.key | sudo gpg --dearmor -o /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+            && sudo chmod 644 /etc/apt/keyrings/kubernetes-apt-keyring.gpg \
+            && echo 'deb [signed-by=/etc/apt/keyrings/kubernetes-apt-keyring.gpg] https://pkgs.k8s.io/core:/stable:/v1.32/deb/ /' | sudo tee /etc/apt/sources.list.d/kubernetes.list \
+            && sudo chmod 644 /etc/apt/sources.list.d/kubernetes.list \
+            && sudo apt-get update \
+            && sudo apt-get install -y kubectl 
+
+      - name: Install GitHub CLI
+        shell: bash
+        if: ${{ env.ACT && runner.os == 'Linux' }}
+        run: |
+          (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
+            && sudo mkdir -p -m 755 /etc/apt/keyrings \
+            && out=$(mktemp) && wget -nv -O$out https://cli.github.com/packages/githubcli-archive-keyring.gpg \
+            && cat $out | sudo tee /etc/apt/keyrings/githubcli-archive-keyring.gpg > /dev/null \
+            && sudo chmod go+r /etc/apt/keyrings/githubcli-archive-keyring.gpg \
+            && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
+            && sudo apt update \
+            && sudo apt install gh -y
       - id: checkout
         name: Clone to local
         uses: actions/checkout@v4
@@ -60,44 +93,22 @@ jobs:
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
             pipeline_type=$(basename "$folder")
             echo "creating manifest for $pipeline_type"
-            iac/elk/scripts/generate_pipeline_manifest.sh iac/elk/templates/pipeline.yaml.tpl "iac/elk/manifests/${pipeline_type}-pipeline.yaml" "local/${folder}" ${{ github.sha }} ${pipeline_type}
+            cat local/${folder}/* > iac/elk/logstash/kustomize/${pipeline_type}/pipeline.conf
+            kubectl kustomize iac/elk/logstash/kustomize/${pipeline_type} > iac/elk/logstash/kustomize/${pipeline_type}/pipeline.yaml
             echo "Manifest created for $pipeline_type"
-            echo "Manifest created: iac/elk/manifests/${pipeline_type}-pipeline.yaml"
           done
           echo "Manifests created: ${{ steps.changed-files.outputs.all_changed_files }}"
       - name: Show Manifests
         run: |
           echo "Manifests created:"
-          tree iac/elk/manifests/
+          tree iac/elk/logstash/kustomize
       - name: Commit and push
         run: |
           cd iac
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
-          git checkout -b update-manifests-${{ github.sha }}
-          git add elk/manifests/
-          git commit -m "Update manifests for app GitHub Sha ${{ github.sha }}"
-          git push origin update-manifests-${{ github.sha }}
+          git checkout -b candidate
+          git add elk/logstash/kustomize/
+          git commit -m "Update manifests" -m "Application Sha ${{ github.sha }}" -m "Pipeline Sha ${{ github.event.after }}" -m "Pipeline files ${{ steps.changed-files.outputs.all_changed_files }}" 
+          git push origin candidate
 
-
-  # commit-pipeline-manifest:
-  #   needs: get-changed-files-matrix
-  #   runs-on: ubuntu-latest
-  #   steps: 
-  #     - id: checkout
-  #       name: Clone local
-  #       uses: actions/checkout@v4
-  #       with:
-  #         path: local
-  #     - id: clone-iac
-  #       name: Clone iac
-  #       uses: actions/checkout@v4
-  #       with:
-  #         ssh-key: ${{ secrets.IAC_KEY }}
-  #         repository: ${{ vars.IAC_REPO }}
-  #         path: iac
-  #     - run: ls -l
-  #     - id: create-new-mainfests
-  #       env:
-  #         ALL_CHANGED_FILES: ${{ steps.changed-files.outputs.all_changed_files }}
-  #       run: echo "${{ matrix.files }}"
