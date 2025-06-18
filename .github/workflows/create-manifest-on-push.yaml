@@ -1,4 +1,4 @@
-  # This workflow is used to update the kubernetes secret manifest on synlig-iac. 
+# This workflow is used to update the kubernetes secret manifest on hello-cloudbuilder-iac. 
 # The trigger to run would be:
 # - There is an push to main
 # - The push contains a change logstash pipeline file
@@ -12,25 +12,37 @@ on:
     paths:
       - 'logstash/pipeline/**'
 
+
+env:
+  APP_CHECKOUT_PATH: 'local' # Where to checkout the application repo
+  IAC_COMMIT_BRANCH: 'candidate' # Branch to use for IAC repo changes
+  IAC_CHECKOUT_PATH: 'iac' # Where to checkout the IAC repo
+  IAC_PATH: 'elk/logstash/kustomize' # Path in IAC repo for logstash manifests
+
 jobs:
   run-pipeline-tests:
     runs-on: ubuntu-latest 
+    # This job is a placeholder for running pipeline tests (currently only checks out code)
     steps:
-        - uses: actions/checkout@v4
+        - uses: actions/checkout@v4 # Checks out the repository code
 
-  create-pipeline-manifest:
+  push-pipeline-to-iac:
     runs-on: ubuntu-latest
+    # This job handles updating the IAC repo with new pipeline manifests
     steps:
       - name: Install Applications
         shell: bash
         if: ${{ env.ACT && runner.os == 'Linux' }}
+        # Installs basic utilities (tree) if running in ACT (local GitHub Actions runner)
         run: |
           sudo apt update \
           && sudo apt-get update \
           && sudo apt-get install -y tree 
+
       - name: Install kubectl
         shell: bash
         if: ${{ env.ACT && runner.os == 'Linux' }}
+        # Installs kubectl if running in ACT (local GitHub Actions runner)
         run: |
           (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
             && sudo apt-get install -y apt-transport-https ca-certificates curl gnupg \
@@ -45,6 +57,7 @@ jobs:
       - name: Install GitHub CLI
         shell: bash
         if: ${{ env.ACT && runner.os == 'Linux' }}
+        # Installs GitHub CLI if running in ACT (local GitHub Actions runner)
         run: |
           (type -p wget >/dev/null || (sudo apt update && sudo apt-get install wget -y)) \
             && sudo mkdir -p -m 755 /etc/apt/keyrings \
@@ -54,61 +67,89 @@ jobs:
             && echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/githubcli-archive-keyring.gpg] https://cli.github.com/packages stable main" | sudo tee /etc/apt/sources.list.d/github-cli.list > /dev/null \
             && sudo apt update \
             && sudo apt install gh -y
+
       - id: checkout
-        name: Clone to local
+        name: Clone to ${{ env.APP_CHECKOUT_PATH }}
         uses: actions/checkout@v4
+        # Checks out the application repository to the specified path
+
         with:
-          path: local
-      - name: Get changed files
+          path: ${{ env.APP_CHECKOUT_PATH }}
+
+      - name: Get changed pipeline files
         id: changed-files
         uses: tj-actions/changed-files@823fcebdb31bb35fdf2229d9f769b400309430d0 # v46
+        # Finds which pipeline files have changed in this push
         with:
-          path: local
+          path: ${{ env.APP_CHECKOUT_PATH }}
           dir_names: true
           files: |
             logstash/pipeline/**
+
       - name: debug
+        # Prints out the list of all changed files for debugging purposes
         run: |
           echo "All changed files: ${{ steps.changed-files.outputs.all_changed_files }}"
-          echo "Changed files: ${{ steps.changed-files.outputs.changed_files }}"
-          echo "Added files: ${{ steps.changed-files.outputs.added_files }}"
-          echo "Modified files: ${{ steps.changed-files.outputs.modified_files }}"
-          echo "Removed files: ${{ steps.changed-files.outputs.removed_files }}"
-          echo "Renamed files: ${{ steps.changed-files.outputs.renamed_files }}"
-          echo "Unmerged files: ${{ steps.changed-files.outputs.unmerged_files }}"
+
       - id: clone-iac
-        name: Clone iac
+        name: Clone iac to ${{ env.IAC_CHECKOUT_PATH }}
         uses: actions/checkout@v4
+        # Checks out the IAC repository to the specified path using a deploy key
         with:
           ssh-key: ${{ secrets.IAC_KEY }}
           repository: ${{ vars.IAC_REPO }}
-          path: iac
-      - name: Show files
+          path: ${{ env.IAC_CHECKOUT_PATH }}
+
+      - name: Ensure Candidate Branch Exists
+        # Makes sure the candidate branch exists in the IAC repo, creates it if not
+        run: |
+          cd ${{ env.IAC_CHECKOUT_PATH }}
+          git fetch origin ${{ env.IAC_COMMIT_BRANCH }} || true
+          git checkout ${{ env.IAC_COMMIT_BRANCH }} 2>/dev/null || git checkout -b ${{ env.IAC_COMMIT_BRANCH }}
+  
+      - name: Show tree
+        # Shows the directory tree for debugging/inspection
         run: |
           tree
-      - name: create manifests
-        id: create-manifests
+
+      - name: cat pipeline files
+        id: cat-pipeline-files
+        # Concatenates all files in each changed pipeline folder into a single pipeline.conf file in the IAC repo
         run: |
-          echo "Creating manifests"
+          echo "Started to creating pipeline files"
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
             pipeline_type=$(basename "$folder")
-            echo "creating manifest for $pipeline_type"
-            cat local/${folder}/* > iac/elk/logstash/kustomize/${pipeline_type}/pipeline.conf
-            kubectl kustomize iac/elk/logstash/kustomize/${pipeline_type} > iac/elk/logstash/kustomize/${pipeline_type}/pipeline.yaml
-            echo "Manifest created for $pipeline_type"
+            echo "creating pipeline.conf for $pipeline_type"
+            cat ${{ env.APP_CHECKOUT_PATH }}/${folder}/* > ${{ env.IAC_CHECKOUT_PATH }}/${{ env.IAC_PATH }}/${pipeline_type}/pipeline.conf
           done
-          echo "Manifests created: ${{ steps.changed-files.outputs.all_changed_files }}"
-      - name: Show Manifests
+          echo "pipeline.conf files created: ${{ steps.changed-files.outputs.all_changed_files }}"
+
+      - name: Check for Changes
+        id: check-diff
+        # Checks if there are any changes in the IAC repo after updating pipeline.conf files
         run: |
-          echo "Manifests created:"
-          tree iac/elk/logstash/kustomize
+          cd ${{ env.IAC_CHECKOUT_PATH }}
+          echo "Git changes in ${{ env.IAC_CHECKOUT_PATH }}: $(git status --porcelain)"
+          if [[ -n "$(git status --porcelain)" ]]; then
+            echo "Changes detected in the manifest files."
+            echo "Changed files: $(git status --porcelain)"
+            echo "changes=true" >> $GITHUB_OUTPUT
+          else
+            echo "No changes detected in the manifest files."
+            echo "Skipping commit and push."
+            echo "changes=false" >> $GITHUB_OUTPUT
+          fi
+
       - name: Commit and push
+        if: steps.check-diff.outputs.changes == 'true'
+        # If there are changes, commit and push them to the candidate branch of the IAC repo
         run: |
-          cd iac
+          cd ${{ env.IAC_CHECKOUT_PATH }}
           git config --global user.email "github-actions@github.com"
           git config --global user.name "GitHub Actions"
-          git checkout -b candidate
-          git add elk/logstash/kustomize/
-          git commit -m "Update manifests" -m "Application Sha ${{ github.sha }}" -m "Pipeline Sha ${{ github.event.after }}" -m "Pipeline files ${{ steps.changed-files.outputs.all_changed_files }}" 
-          git push origin candidate
+          git add ${{ env.IAC_PATH }}/
+          git commit -m "Update manifests" \
+            -m "Application Sha ${{ github.sha }}" \
+            -m "Changed Pipeline files ${{ steps.changed-files.outputs.all_changed_files }}" 
+          git push origin ${{ env.IAC_COMMIT_BRANCH}}
 
