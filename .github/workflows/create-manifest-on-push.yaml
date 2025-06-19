@@ -116,8 +116,6 @@ jobs:
         id: cat-pipeline-files
         # Concatenates all files in each changed pipeline folder into a single pipeline.conf file in the IAC repo
         # Each pipeline.conf file is then used to create a Kubernetes secret manifest
-        # TODO: Refactor with local variables. 
-        # TODO: the kubernetes secret manifest name needs underscores removed
         run: |
           echo "Started to creating pipeline files"
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
@@ -127,12 +125,13 @@ jobs:
             echo "Creating pipeline.conf for $PIPELINE_TYPE"
             cat ${PIPELINE_DIRECTORY_PATH}/* > "${OUTPUT_DIRECTORY_PATH}/pipeline.conf"
             echo "Created pipeline.conf for $PIPELINE_TYPE"
-            echo "Creating pipelines.yml for $PIPELINE_TYPE"
+            echo "Creating secret manifests for $PIPELINE_TYPE"
+            SECRET_NAME="logstash-pipeline-${PIPELINE_TYPE//_/-}" # Replaces underscores with dashes for Kubernetes secret name
           cat << EOF > "${OUTPUT_DIRECTORY_PATH}/pipelines.yml"
           apiVersion: v1
           kind: Secret
           metadata:
-            name: logstash-pipeline-${PIPELINE_TYPE}
+            name: ${SECRET_NAME}
           type: Opaque
           stringData:
             pipelines.yml: |-
