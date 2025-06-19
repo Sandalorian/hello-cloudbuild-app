@@ -112,17 +112,36 @@ jobs:
         run: |
           tree
 
-      - name: cat pipeline files
+      - name: cat pipeline files and create manifest
         id: cat-pipeline-files
         # Concatenates all files in each changed pipeline folder into a single pipeline.conf file in the IAC repo
+        # Each pipeline.conf file is then used to create a Kubernetes secret manifest
+        # TODO: Refactor with local variables. 
+        # TODO: the kubernetes secret manifest name needs underscores removed
         run: |
           echo "Started to creating pipeline files"
           for folder in ${{ steps.changed-files.outputs.all_changed_files }}; do
-            pipeline_type=$(basename "$folder")
-            echo "creating pipeline.conf for $pipeline_type"
-            cat ${{ env.APP_CHECKOUT_PATH }}/${folder}/* > ${{ env.IAC_CHECKOUT_PATH }}/${{ env.IAC_PATH }}/${pipeline_type}/pipeline.conf
+            PIPELINE_TYPE=$(basename "$folder") # Extracts the pipeline type from the folder name (e.g. "debug_logs", "query_logs", "metrics")
+            PIPELINE_DIRECTORY_PATH="${{ env.APP_CHECKOUT_PATH }}/${folder}"
+            OUTPUT_DIRECTORY_PATH="${{ env.IAC_CHECKOUT_PATH }}/${{ env.IAC_PATH }}/${PIPELINE_TYPE}"
+            echo "Creating pipeline.conf for $PIPELINE_TYPE"
+            cat ${PIPELINE_DIRECTORY_PATH}/* > "${OUTPUT_DIRECTORY_PATH}/pipeline.conf"
+            echo "Created pipeline.conf for $PIPELINE_TYPE"
+            echo "Creating pipelines.yml for $PIPELINE_TYPE"
+          cat << EOF > "${OUTPUT_DIRECTORY_PATH}/pipelines.yml"
+          apiVersion: v1
+          kind: Secret
+          metadata:
+            name: logstash-pipeline-${PIPELINE_TYPE}
+          type: Opaque
+          stringData:
+            pipelines.yml: |-
+              - pipeline.id: main
+                config.string: |
+          $(sed 's/^/        /' "${OUTPUT_DIRECTORY_PATH}/pipeline.conf")
+          EOF
+            echo "Created pipelines.yml for $PIPELINE_TYPE"
           done
-          echo "pipeline.conf files created: ${{ steps.changed-files.outputs.all_changed_files }}"
 
       - name: Check for Changes
         id: check-diff
